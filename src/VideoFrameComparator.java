@@ -72,7 +72,6 @@ public class VideoFrameComparator {
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
-                System.out.println(i);
             }
             channel.close();
             raf.close();
