@@ -13,28 +13,29 @@ import java.text.DecimalFormat;
 
 public class SegmentedVideoFrameClustering {
     private static final DecimalFormat df = new DecimalFormat("0.00");
+
+    private static List<BufferedImage> frames;
+    private static final int segment_length = 25; // number of frames in segment
+
     public static void main(String[] args) {
         File file = new File("InputVideo.rgb"); // name of the RGB video file
         int width = 480; // width of the video frames
         int height = 270; // height of the video frames
         int fps = 30; // frames per second of the video
         int numFrames = 8682; // number of frames in the video
-        int threshold = 10000;
-
-        final int segment_length = 25; // number of frames in segment
-
-        List<List<Integer>> currentGroup = new ArrayList<>();
+        double correlation_threshold = 0.9; // TODO: need to tune this parameter
 
         try {
             RandomAccessFile raf = new RandomAccessFile(file, "r");
             FileChannel channel = raf.getChannel();
             ByteBuffer buffer = ByteBuffer.allocate(width * height * 3);
 
-            for (int i = 0; i < numFrames-1; i+=segment_length) {
+            for (int i = 0; i < numFrames-1; i++) {
                 buffer.clear();
                 channel.read(buffer);
                 buffer.rewind();
                 BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+                frames.add(image);
                 for (int y = 0; y < height; y++) {
                     for (int x = 0; x < width; x++) {
                         int r = buffer.get() & 0xff;
@@ -44,37 +45,29 @@ public class SegmentedVideoFrameClustering {
                         image.setRGB(x, y, rgb);
                     }
                 }
-                // Compute histogram
-                List<Integer> histogram = computeHistogram(image);
-                // Add the histogram to the current group
-                if(currentGroup.isEmpty()) {
-                    currentGroup.add(histogram);
-                }
-                else {
-                    List<Integer> lastHistogram = currentGroup.get(currentGroup.size() - 1);
-                    double correlation = computeCorrelation(histogram, lastHistogram);
-                    if (correlation > threshold) { // segment is dynamic
-//                        TODO: need to find the actual cut frame within the segment
+            }
 
-                        int cut_frame = i - (segment_length / 2);
+            // calculate segment beginning-end frame correlations
+            for (int i = 0; i < numFrames - segment_length; i+=segment_length) {
+                // compute correlation between first and last frames of segment
+                double correlation = computeCorrelation(i, i+segment_length);
 
-                        // Start a new group
-                        int minutes = ((cut_frame/30) % 3600) / 60;
-                        double seconds = (cut_frame/30.0) % 60;
-                        System.out.println(minutes + " min : " + df.format(seconds) + " secs");
-                        //System.out.println(distance/10000);
-                        currentGroup.clear();
-                    } else { // segment is static
+                if (correlation < correlation_threshold) { // segment is dynamic
+                    // temporary placement of cut frame in middle of segment
+                    int cut_frame = findCutFrame(i);
 
-                    }
-                    currentGroup.add(histogram);
-                }
+                    // Start a new group
+                    int minutes = ((cut_frame/30) % 3600) / 60;
+                    double seconds = (cut_frame/30.0) % 60;
+                    System.out.println(minutes + " min : " + df.format(seconds) + " secs");
+                    //System.out.println(distance/10000);
+                } // else { // segment is static, do nothing
+            }
 
-                try {
-                    Thread.sleep(1000 / fps);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
+            try {
+                Thread.sleep(1000 / fps);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
             channel.close();
             raf.close();
@@ -83,14 +76,26 @@ public class SegmentedVideoFrameClustering {
         }
     }
 
-    // Helper method to calculate the Euclidean distance between two histograms
-    private static long computeHistogramDistance(List<Integer> histogram1, List<Integer> histogram2) {
-        long distance = 0;
-        for (int i = 0; i < histogram1.size(); i++) {
-            long diff = histogram1.get(i) - histogram2.get(i);
-            distance += diff * diff;
+    /**
+     *
+     * @param index - first frame of segment, with length segment_length
+     * @return cut_index : index of the cut frame (absolute index, not relative to i)
+     */
+    private static int findCutFrame(int index) {
+        double lowest_correlation = 200.0;
+        int low_correlation_idx = index + segment_length;
+
+        for (int i = index; i < index + segment_length - 1; i++) {
+            double correlation = computeCorrelation(i, i+1);
+
+            // calculate lowest correlation value within the segment
+            if (correlation < lowest_correlation) {
+                lowest_correlation = correlation;
+                low_correlation_idx = i+1; // set frame cut index to the second frame in the comparison
+            }
         }
-        return distance;
+
+        return low_correlation_idx;
     }
 
     /**
@@ -156,9 +161,12 @@ public class SegmentedVideoFrameClustering {
         return histogram;
     }
 
-    private static double computeCorrelation(List<Integer> vector1, List<Integer> vector2) {
-        List<Double> norm1 = normalize_histogram(vector1);
-        List<Double> norm2 = normalize_histogram(vector2);
+    private static double computeCorrelation(int frameIdx1, int frameIdx2) {
+        List<Integer> histogram1 = computeHistogram(frames.get(frameIdx1));
+        List<Integer> histogram2 = computeHistogram(frames.get(frameIdx2));
+
+        List<Double> norm1 = normalize_histogram(histogram1);
+        List<Double> norm2 = normalize_histogram(histogram2);
 
         double numerator = innerProduct(norm1, norm2);
         double denominator = magnitude(norm1) * magnitude(norm2);
