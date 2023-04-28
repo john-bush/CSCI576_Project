@@ -1,4 +1,5 @@
 import java.awt.Color;
+import java.awt.Dimension;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -6,8 +7,6 @@ import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.*;
-import javax.imageio.ImageIO;
-import java.math.RoundingMode;
 import java.text.DecimalFormat;
 
 public class VideoFrameClustering {
@@ -18,7 +17,7 @@ public class VideoFrameClustering {
         int height = 270; // height of the video frames
         int fps = 30; // frames per second of the video
         int numFrames = 8682; // number of frames in the video
-        int threshold = 10000;
+        int threshold = 11000;
 
         List<List<Integer>> currentGroup = new ArrayList<>();
 
@@ -26,6 +25,7 @@ public class VideoFrameClustering {
             RandomAccessFile raf = new RandomAccessFile(file, "r");
             FileChannel channel = raf.getChannel();
             ByteBuffer buffer = ByteBuffer.allocate(width * height * 3);
+            int lastShot = 0;
 
             for (int i = 0; i < numFrames-1; i++) {
                 buffer.clear();
@@ -51,16 +51,18 @@ public class VideoFrameClustering {
                     List<Integer> lastHistogram = currentGroup.get(currentGroup.size() - 1);
                     long distance = computeHistogramDistance(histogram, lastHistogram);
                     if (distance/10000 > threshold) {
-                        // Start a new group
-                        int minutes = ((i/30) % 3600) / 60;
-                        double seconds = (i/30.0) % 60;
-                        System.out.println(minutes + " min : " + df.format(seconds) + " secs");
-                        //System.out.println(distance/10000);
-                        currentGroup.clear();
+                        if(i - lastShot >= fps) {
+                            // Start a new group
+                            int minutes = ((i/30) % 3600) / 60;
+                            double seconds = (i/30.0) % 60;
+                            System.out.println(minutes + " min : " + df.format(seconds) + " secs");
+                            //System.out.println(distance/10000);
+                            lastShot = i;
+                            currentGroup.clear();
+                        }
                     }
                     currentGroup.add(histogram);
                 }                
- 
                 try {
                     Thread.sleep(1000 / fps);
                 } catch (InterruptedException e) {
