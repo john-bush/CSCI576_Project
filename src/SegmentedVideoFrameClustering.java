@@ -1,8 +1,6 @@
 import java.awt.Color;
 import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
-import java.io.RandomAccessFile;
+import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.*;
@@ -18,8 +16,8 @@ public class SegmentedVideoFrameClustering {
     private static final DecimalFormat df = new DecimalFormat("00.00");
     private static List<BufferedImage> frames = new ArrayList<>();
 
-    static final int num_block_rows = 5;
-    static final int num_block_cols = 5;
+    static final int num_block_rows = 3;
+    static final int num_block_cols = 3;
     static final int num_histograms = 4;
     static final int num_bins = 256;
     private static final int segment_length = 25; // number of frames in segment
@@ -32,18 +30,28 @@ public class SegmentedVideoFrameClustering {
     static final double correlation_threshold = 0.96;
     static final int DEBUG = 0; // to show correlation differences
     public static void main(String[] args) {
-        File file = new File("lib/The_Great_Gatsby_rgb/InputVideo.rgb"); // name of the RGB video file
+//        String videoName = "The_Great_Gatsby";
+        String videoName = "Ready_Player_One";
+        String videoPathName = "lib/"+videoName+"_rgb/InputVideo.rgb";
+        File file = new File(videoPathName); // name of the RGB video file
         int width = 480; // width of the video frames
         int height = 270; // height of the video frames
         int fps = 30; // frames per second of the video
         int numFrames = 8682; // number of frames in the video
 
-        System.out.println("Blocks:"+num_block_rows+"x"+num_block_cols+", Thresholds: "+TC1+", " + TC2 + ", Epsilon: " + epsilon);
+        String outputFilename = "log/" + videoName + "_B"+num_block_rows+"x"+num_block_cols+"_Thresh1_"+TC1+"_Thresh2_" + TC2 + "_E_" + epsilon;
+        String header = "Blocks:"+num_block_rows+"x"+num_block_cols+", Thresholds: "+TC1+", " + TC2 + ", Epsilon: " + epsilon;
 
         try {
             RandomAccessFile raf = new RandomAccessFile(file, "r");
             FileChannel channel = raf.getChannel();
             ByteBuffer buffer = ByteBuffer.allocate(width * height * 3);
+
+            FileWriter writer = new FileWriter(outputFilename);
+            BufferedWriter bw = new BufferedWriter(writer);
+
+            System.out.println(header);
+            bw.write(header + "\n");
 
             for (int i = 0; i < numFrames-1; i++) {
                 buffer.clear();
@@ -83,7 +91,9 @@ public class SegmentedVideoFrameClustering {
                         // Start a new group
                         int minutes = ((cut_frame / 30) % 3600) / 60;
                         double seconds = (cut_frame / 30.0) % 60;
-                        System.out.println(minutes + " min : " + df.format(seconds) + " secs");
+                        String timestamp = minutes + " min : " + df.format(seconds) + " secs";
+                        System.out.println(timestamp);
+                        bw.write(timestamp + "\n");
                     }
                     //System.out.println(distance/10000);
                 } // else { // segment is static, do nothing
@@ -96,6 +106,8 @@ public class SegmentedVideoFrameClustering {
             }
             channel.close();
             raf.close();
+            bw.close();
+            writer.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
