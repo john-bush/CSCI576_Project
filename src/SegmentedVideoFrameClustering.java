@@ -14,61 +14,54 @@ import org.apache.commons.math4.legacy.linear.SingularValueDecomposition;
 
 public class SegmentedVideoFrameClustering {
     private static final DecimalFormat df = new DecimalFormat("00.00");
+
+    public void setFrames(List<BufferedImage> frames) {
+        SegmentedVideoFrameClustering.frames = frames;
+    }
+
     private static List<BufferedImage> frames = new ArrayList<>();
 
-    static final int num_block_rows = 3;
-    static final int num_block_cols = 3;
-    static final int num_histograms = 4;
-    static final int num_bins = 256;
-    private static final int segment_length = 25; // number of frames in segment
-    private static final int frame_step = 4; // frame step used for cut verification
+    private static int num_block_rows = 3;
+    private static int num_block_cols = 3;
+    private static final int num_histograms = 4;
+    private static final int num_bins = 256;
+    private static int segment_length = 20; // number of frames in segment
+    private static int frame_step = 4; // frame step used for cut verification
 
 //    THRESHOLDS AND TUNING PARAMETERS
-    static final double epsilon = 0.0001;
-    static final double TC1 = 0.75;
-    static final double TC2 = 0.90;
+    private static double epsilon = 0.01;
+    private static double TC1 = 0.75;
+    private static double TC2 = 0.93;
     static final double correlation_threshold = 0.96;
-    static final int DEBUG = 0; // to show correlation differences
+    static final int DEBUG = -1; // to show correlation differences
+    static final boolean PRINT_TIME = false;
+
+    public static String videoName = "Ready_Player_One";
+
+    // Main method
     public static void main(String[] args) {
+        SegmentedVideoFrameClustering SBD = new SegmentedVideoFrameClustering(); // Create an object of Main
+        SBD.performSBD(); // Call the public method on the object
+    }
+
+    public void performSBD() {
 //        String videoName = "The_Great_Gatsby";
-        String videoName = "Ready_Player_One";
-        String videoPathName = "lib/"+videoName+"_rgb/InputVideo.rgb";
-        File file = new File(videoPathName); // name of the RGB video file
-        int width = 480; // width of the video frames
-        int height = 270; // height of the video frames
-        int fps = 30; // frames per second of the video
+//        String videoName = "Ready_Player_One";
         int numFrames = 8682; // number of frames in the video
 
-        String outputFilename = "log/" + videoName + "_B"+num_block_rows+"x"+num_block_cols+"_Thresh1_"+TC1+"_Thresh2_" + TC2 + "_E_" + epsilon;
+        String outputFilename = "log/" + videoName + "_B"+num_block_rows+"x"+num_block_cols+"_Thresh1_"+TC1+"_Thresh2_" + TC2 + "_E_" + epsilon + "_Seg_" + segment_length + "_FStep_" + frame_step;
         String header = "Blocks:"+num_block_rows+"x"+num_block_cols+", Thresholds: "+TC1+", " + TC2 + ", Epsilon: " + epsilon;
 
         try {
-            RandomAccessFile raf = new RandomAccessFile(file, "r");
-            FileChannel channel = raf.getChannel();
-            ByteBuffer buffer = ByteBuffer.allocate(width * height * 3);
 
             FileWriter writer = new FileWriter(outputFilename);
             BufferedWriter bw = new BufferedWriter(writer);
 
-            System.out.println(header);
+//            System.out.println(header);
             bw.write(header + "\n");
 
-            for (int i = 0; i < numFrames-1; i++) {
-                buffer.clear();
-                channel.read(buffer);
-                buffer.rewind();
-                BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-                frames.add(image);
-                for (int y = 0; y < height; y++) {
-                    for (int x = 0; x < width; x++) {
-                        int r = buffer.get() & 0xff;
-                        int g = buffer.get() & 0xff;
-                        int b = buffer.get() & 0xff;
-                        int rgb = (r << 16) | (g << 8) | b;
-                        image.setRGB(x, y, rgb);
-                    }
-                }
-            }
+            frames = readVideoFile(videoName);
+
 
             // calculate segment beginning-end frame correlations
             for (int i = 0; i < numFrames - segment_length - 1; i+=(segment_length - 1)) {
@@ -88,17 +81,71 @@ public class SegmentedVideoFrameClustering {
                         }
                         int cut_frame = i + rel_frame;
 
-                        // Start a new group
-                        int minutes = ((cut_frame / 30) % 3600) / 60;
-                        double seconds = (cut_frame / 30.0) % 60;
-                        String timestamp = minutes + " min : " + df.format(seconds) + " secs";
-                        System.out.println(timestamp);
-                        bw.write(timestamp + "\n");
+                        if (PRINT_TIME) {
+                            // Start a new group
+                            int minutes = ((cut_frame / 30) % 3600) / 60;
+                            double seconds = (cut_frame / 30.0) % 60;
+                            String timestamp = minutes + " min : " + df.format(seconds) + " secs";
+                            System.out.println(timestamp);
+                            bw.write(timestamp + "\n");
+                        } else {
+                            if (DEBUG >= 0) {
+                                System.out.println(cut_frame);
+                            }
+                            bw.write(cut_frame + "\n");
+                        }
+
                     }
                     //System.out.println(distance/10000);
                 } // else { // segment is static, do nothing
             }
 
+//            try {
+//                Thread.sleep(1000 / fps);
+//            } catch (InterruptedException e) {
+//                e.printStackTrace();
+//            }
+            bw.close();
+            writer.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        frames.clear();
+        System.gc();
+    }
+
+    public static List<BufferedImage> readVideoFile(String videoName) {
+        List<BufferedImage> frameList = new ArrayList<>();
+        String videoPathName = "lib/"+videoName+"_rgb/InputVideo.rgb";
+        File file = new File(videoPathName); // name of the RGB video file
+        int width = 480; // width of the video frames
+        int height = 270; // height of the video frames
+        int fps = 30; // frames per second of the video
+        int numFrames = 8682; // number of frames in the video
+
+        try {
+            RandomAccessFile raf = new RandomAccessFile(file, "r");
+            FileChannel channel = raf.getChannel();
+            ByteBuffer buffer = ByteBuffer.allocate(width * height * 3);
+
+
+            for (int i = 0; i < numFrames-1; i++) {
+                buffer.clear();
+                channel.read(buffer);
+                buffer.rewind();
+                BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+                frameList.add(image);
+                for (int y = 0; y < height; y++) {
+                    for (int x = 0; x < width; x++) {
+                        int r = buffer.get() & 0xff;
+                        int g = buffer.get() & 0xff;
+                        int b = buffer.get() & 0xff;
+                        int rgb = (r << 16) | (g << 8) | b;
+                        image.setRGB(x, y, rgb);
+                    }
+                }
+            }
             try {
                 Thread.sleep(1000 / fps);
             } catch (InterruptedException e) {
@@ -106,19 +153,20 @@ public class SegmentedVideoFrameClustering {
             }
             channel.close();
             raf.close();
-            bw.close();
-            writer.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
+        return frameList;
     }
+
+
 
     /**
      *
      * @param index - frame index of start of segment to analyze
      * @return frame number of cut transition (-1 if the segment is static)
      */
-    private static int cutTransitionID(int index) {
+    private int cutTransitionID(int index) {
         double[][] matrixBeta = calculateMatrixBeta(index);
         int cut_index = -1;
         // look for distance less than TC1
@@ -187,7 +235,7 @@ public class SegmentedVideoFrameClustering {
         }
     }
 
-    private static int cutTransitionID_Incremental(int index) {
+    private int cutTransitionID_Incremental(int index) {
         double[][] matrixBeta = calculateMatrixBeta(index);
         int cut_index = -1;
         // look for distance less than TC1
@@ -277,7 +325,7 @@ public class SegmentedVideoFrameClustering {
      * @param index - index of start of segment
      * @return - matrix H of size [m][segment_length]
      */
-    private static double[][] constructMatrixH(int index) {
+    private double[][] constructMatrixH(int index) {
         // length of each column vector
         final int m = num_block_rows * num_block_cols * num_histograms * num_bins;
 
@@ -332,7 +380,7 @@ public class SegmentedVideoFrameClustering {
         return k;
     }
 
-    private static double[][] calculateMatrixBeta(int index) {
+    private double[][] calculateMatrixBeta(int index) {
         int minutes = ((index / 30) % 3600) / 60;
         double seconds = (index / 30.0) % 60;
         if (DEBUG > 0) {
@@ -389,7 +437,7 @@ public class SegmentedVideoFrameClustering {
      * @param index - first frame of segment, with length segment_length
      * @return cut_index : index of the cut frame (absolute index, not relative to i)
      */
-    private static int findCutFrame(int index) {
+    private int findCutFrame(int index) {
         double lowest_correlation = 200.0;
         int low_correlation_idx = index + segment_length;
 
@@ -417,7 +465,7 @@ public class SegmentedVideoFrameClustering {
      */
 
 
-    private static List<Integer> computeHistogram(BufferedImage image) {
+    private List<Integer> computeHistogram(BufferedImage image) {
         final int m = num_block_rows * num_block_cols * num_histograms * num_bins;
         List<Integer> histogram = new ArrayList<>(m);
 
@@ -469,7 +517,7 @@ public class SegmentedVideoFrameClustering {
         return histogram;
     }
 
-    private static double computeCorrelation(int frameIdx1, int frameIdx2) {
+    private double computeCorrelation(int frameIdx1, int frameIdx2) {
         List<Integer> histogram1 = computeHistogram(frames.get(frameIdx1));
         List<Integer> histogram2 = computeHistogram(frames.get(frameIdx2));
 
@@ -482,7 +530,7 @@ public class SegmentedVideoFrameClustering {
         return numerator/denominator;
     }
 
-    private static double computeCorrelation(double[] vector1, double[] vector2) {
+    private double computeCorrelation(double[] vector1, double[] vector2) {
         double[] norm_vector1 = normalize_vector(vector1);
         double[] norm_vector2 = normalize_vector(vector2);
 
@@ -495,7 +543,7 @@ public class SegmentedVideoFrameClustering {
         return numerator/denominator;
     }
 
-    private static List<Double> normalize_histogram(List<Integer> histogram) {
+    private List<Double> normalize_histogram(List<Integer> histogram) {
         final int m = histogram.size();
         List<Double> normalized_histogram = new ArrayList<>(m);
         int average = 0;
@@ -513,7 +561,7 @@ public class SegmentedVideoFrameClustering {
         return normalized_histogram;
     }
 
-    private static double[] normalize_vector(double[] vector) {
+    private double[] normalize_vector(double[] vector) {
         final int m = vector.length;
         double[] norm_vector = new double[m];
         int average = 0;
@@ -532,7 +580,7 @@ public class SegmentedVideoFrameClustering {
 
 
 
-    private static double innerProduct(List<Double> vector1, List<Double> vector2) {
+    private double innerProduct(List<Double> vector1, List<Double> vector2) {
         final int m = vector1.size();
         if (m != vector2.size()) {
             return 0;
@@ -550,7 +598,7 @@ public class SegmentedVideoFrameClustering {
         return sum;
     }
 
-    private static double innerProduct(double[] vector1, double[] vector2) {
+    private double innerProduct(double[] vector1, double[] vector2) {
         final int m = vector1.length;
         if (m < vector2.length) {
             return 0;
@@ -562,7 +610,7 @@ public class SegmentedVideoFrameClustering {
         return sum;
     }
 
-    private static double magnitude(List<Double> vector) {
+    private double magnitude(List<Double> vector) {
         double sum = 0;
 
         for (Double element : vector) {
@@ -573,7 +621,7 @@ public class SegmentedVideoFrameClustering {
 
     }
 
-    private static double magnitude(double[] vector) {
+    private double magnitude(double[] vector) {
         double sum = 0;
 
         for (Double element : vector) {
@@ -581,6 +629,38 @@ public class SegmentedVideoFrameClustering {
         }
 
         return Math.sqrt(sum);
+    }
+
+    public void setVideoName(String videoName) {
+        SegmentedVideoFrameClustering.videoName = videoName;
+    }
+
+    public void setNum_block_rows(int num_block_rows) {
+        SegmentedVideoFrameClustering.num_block_rows = num_block_rows;
+    }
+
+    public void setNum_block_cols(int num_block_cols) {
+        SegmentedVideoFrameClustering.num_block_cols = num_block_cols;
+    }
+
+    public void setSegment_length(int segment_length) {
+        SegmentedVideoFrameClustering.segment_length = segment_length;
+    }
+
+    public void setFrame_step(int frame_step) {
+        SegmentedVideoFrameClustering.frame_step = frame_step;
+    }
+
+    public void setEpsilon(double epsilon) {
+        SegmentedVideoFrameClustering.epsilon = epsilon;
+    }
+
+    public void setTC1(double TC1) {
+        SegmentedVideoFrameClustering.TC1 = TC1;
+    }
+
+    public void setTC2(double TC2) {
+        SegmentedVideoFrameClustering.TC2 = TC2;
     }
 }
 
