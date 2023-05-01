@@ -4,20 +4,15 @@ import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.awt.image.BufferedImage;
-import javax.swing.JFrame;
-import javax.swing.JInternalFrame;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
+import javax.swing.*;
 import java.util.*;
 import javax.swing.Timer;
-
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-
-import javax.swing.BorderFactory;
+import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 
@@ -26,6 +21,7 @@ public class VideoPlayer {
     public static JLabel label = new JLabel();
     public static JInternalFrame internalFrame = new JInternalFrame();
     public static JPanel panel = new JPanel();
+    public static JPanel shotsPanel = new JPanel();
     public static List<BufferedImage> frames = new ArrayList<>();
     public static int currFrame = 0;
     public static File file = new File("InputVideo.rgb"); // name of the RGB video file
@@ -33,12 +29,14 @@ public class VideoPlayer {
     public static int height = 270; // height of the video frames
     public static int fps = 30; // frames per second of the video
     public static int numFrames = 8682; // number of frames in the video
-    public static Timer timer = new Timer(0, null);
+    // this is pulled from shotTimeCodes.txt
+    public static List<Integer> shotFrames = new ArrayList<Integer>(Arrays.asList(161, 251, 420, 508, 896, 1080, 1131, 1179, 1352, 1844,
+    1958, 2332, 2459, 2583, 2716, 3148, 3244, 3263, 3284, 3303, 3546, 3620, 3729, 3770, 3809, 3848, 3879, 3990, 4023, 4052, 4081, 4129, 4232, 4346, 4492, 4724, 4844, 5329, 5599, 5754, 5952, 6140, 6303, 6857, 6969, 7048, 7458, 7591));
+    public static List<JButton> shotButtons = new ArrayList<>();
 
     public static void main(String[] args) {
 
         // Set the layout of the JFrame to BorderLayout
-        //frame.setLayout(new BorderLayout());
         frame.setSize(new Dimension(width*2, height*2));
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         label.setPreferredSize(new Dimension(width, height));
@@ -53,8 +51,10 @@ public class VideoPlayer {
 
         // Create a JPanel and add it to the JFrame
         frame.add(panel, BorderLayout.SOUTH);
-        //frame.setSize(width*2, height*2);
-        //frame.setVisible(true);
+        shotsPanel.setLayout(new BoxLayout(shotsPanel, BoxLayout.Y_AXIS));
+        shotsPanel.setPreferredSize(new Dimension(width-50, height*2));
+        JScrollPane scrollPane = new JScrollPane(shotsPanel);
+        frame.add(scrollPane, BorderLayout.WEST);
 
         // read the video file and save each frame
         try {
@@ -83,9 +83,8 @@ public class VideoPlayer {
             e.printStackTrace();
         }
 
-        // Create JButtons and add them to the JPanel
+        // Play Button
         JButton play = new JButton("Play");
-        // Create an ActionListener+Timer
         Timer playTimer = new Timer(1000/fps, null);
         play.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -102,27 +101,40 @@ public class VideoPlayer {
         });
         panel.add(play);
 
+        // Pause Button
         JButton pause = new JButton("Pause");
-        // Create an ActionListener
         ActionListener pauseListener = new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 playTimer.stop();
-                System.out.println("pause");
             }
         };
         pause.addActionListener(pauseListener);
         panel.add(pause);
 
-        // Set the properties of the JPanel
+        // Shot Buttons
+        for(int i = 0; i < shotFrames.size(); i++) {
+            final int final_i = i;
+            shotButtons.add(new JButton("Shot " + (i+1)));
+            shotButtons.get(i).addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    playTimer.stop();
+                    currFrame = shotFrames.get(final_i);
+                    System.out.println(shotFrames.get(final_i));
+                    playTimer.stop();
+                    playTimer.start();
+                }
+            });
+            shotsPanel.add(shotButtons.get(i));
+        }
         panel.setBackground(Color.WHITE);
-        // Set the properties of the JFrame
         frame.setSize(width*2, height*2);
         frame.setVisible(true);
     }
 
     public static void play() {
-        System.out.println(currFrame);
+        //System.out.println(currFrame);
         label.setIcon(new ImageIcon(frames.get(currFrame)));
         internalFrame.revalidate();
         internalFrame.repaint();
