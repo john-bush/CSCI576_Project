@@ -38,6 +38,8 @@ public class SegmentedVideoFrameClustering {
 
     public static String videoName = "Ready_Player_One";
 
+    private boolean framesRead = false;
+
     // Main method
     public static void main(String[] args) {
         SegmentedVideoFrameClustering SBD = new SegmentedVideoFrameClustering(); // Create an object of Main
@@ -60,8 +62,10 @@ public class SegmentedVideoFrameClustering {
 //            System.out.println(header);
             bw.write(header + "\n");
 
-            frames = readVideoFile(videoName);
-
+            if (framesRead == false) {
+                frames = readVideoFile(videoName);
+                framesRead = true;
+            }
 
             // calculate segment beginning-end frame correlations
             for (int i = 0; i < numFrames - segment_length - 1; i+=(segment_length - 1)) {
@@ -111,7 +115,7 @@ public class SegmentedVideoFrameClustering {
             e.printStackTrace();
         }
 
-        frames.clear();
+//        frames.clear();
         System.gc();
     }
 
@@ -244,13 +248,15 @@ public class SegmentedVideoFrameClustering {
 
 //        TODO: these for loop bounds are super sketchy
         // calculate distances on frame step
-        double[] distances = new double[segment_length - (frame_step + 1)]; // 1 2 3 4 5 6 7 8 9 10
+        double[] distances = new double[segment_length / (frame_step - 1)]; // 1 2 3 4 5 6 7 8 9 10
         if (DEBUG > 0){
             System.out.print(", Distances: [");
         }
-        for (int d = 0; d < distances.length; d++) {
+//       0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24
+        for (int d = 0; d < distances.length; d+=3) {
             double[] frame1 = matrixBeta[d];
-            double[] frame2 = matrixBeta[d + frame_step + 1];
+            int idx2 = Math.min(d + frame_step + 1, segment_length - 1);
+            double[] frame2 = matrixBeta[idx2];
             distances[d] = computeCorrelation(frame1, frame2);
             if (DEBUG > 0) {
                 System.out.print(distances[d] + ", ");
@@ -504,7 +510,7 @@ public class SegmentedVideoFrameClustering {
 
                         // luminance equation is from the internet -- supposedly is the perceptual luminance given RGB
                         if (num_histograms == 4) {
-                            int luminance = (int)(0.2126*red) + (int)(0.7152*green) + (int)(0.0722*blue);
+                            int luminance = getLuminance(red, green, blue);
                             int lum_idx = (int)(luminance * (double)(num_bins / 256) + (3 * num_bins) + histogram_offset);
 
                             histogram.set(lum_idx, histogram.get(lum_idx) + 1);
@@ -629,6 +635,27 @@ public class SegmentedVideoFrameClustering {
         }
 
         return Math.sqrt(sum);
+    }
+
+    /**
+     * returns the linear luminance value with a gamma correction within range 0-255
+     * @param r
+     * @param g
+     * @param b
+     * @return
+     */
+    private int getLuminance(int r, int g, int b) {
+        double rawLum = (0.2126 * sRGBtoLin(r) + 0.7152 * sRGBtoLin(g) + 0.0722 * sRGBtoLin(b));
+        return (int)(rawLum * 255);
+    }
+
+    private double sRGBtoLin(int sRGBVal) {
+        double linearVal = sRGBVal / 255.0;
+        if ( linearVal <= 0.04045 ) {
+            return linearVal / 12.92;
+        } else {
+            return Math.pow((( linearVal + 0.055)/1.055),2.4);
+        }
     }
 
     public void setVideoName(String videoName) {

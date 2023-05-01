@@ -1,0 +1,72 @@
+Blocks:4x4, Thresholds: 0.75, 0.93, Epsilon: 0.01
+161
+251
+420
+508
+897
+1080
+1131
+1179
+1351
+--miss 1844--
+--miss 1958--
+2331
+2458
+2582
+2716
+3147
+3243
+3283 -- maybe detected shot at 3263--
+--miss 3284--
+3303
+3309 -- false postiive--
+3379 -- false positive--
+3546
+3570 -- false positive--
+3620
+3729
+3770
+3808
+3848
+3878
+3990
+3995 -- false positive--
+4022
+4032 -- false positive--
+4052
+4081
+4128
+4231
+4346
+4491
+4724
+4843
+--miss 5329--
+5599
+5754
+5951
+6140
+6303
+6449 --false positive--
+--miss 6857--
+--miss 6969--
+7048
+7458
+7591
+7669
+7707 -- false positive--
+7839
+7900 -- false positive--
+7910 -- false positive--
+7999 -- false positive--
+8017
+8030 -- false positive--
+8039 -- false positive--
+8080
+8125
+8185
+8190 -- false positive--
+8269
+8302 -- false positive--
+8311 -- false positive--
+8510

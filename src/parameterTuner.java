@@ -6,7 +6,7 @@ public class parameterTuner {
 
 
     public static void main(String[] args) {
-        String videoName = "The_Great_Gatsby";
+        String videoName = "Ready_Player_One";
         double bestF1 = 0.0;
 
         try {
@@ -14,14 +14,16 @@ public class parameterTuner {
             FileWriter writer = new FileWriter(outputFilename);
             BufferedWriter bw = new BufferedWriter(writer);
 
+            SegmentedVideoFrameClustering SBD = new SegmentedVideoFrameClustering();
+            SBD.setVideoName(videoName);
 
             int iteration_count = 0;
             for (segment_length = segment_length_min; segment_length <= segment_length_max; segment_length += 5) { // 3
                 for (block_dim = block_dim_min; block_dim <= block_dim_max; block_dim++) { // 4
                     for (epsilon = epsilon_min; epsilon <= epsilon_max; epsilon *= 10) { // 3
                         for (TC2 = TC2_min; TC2 <= TC2_max; TC2 += TC2_step) { // 6
-                            SegmentedVideoFrameClustering SBD = new SegmentedVideoFrameClustering();
-                            SBD.setVideoName(videoName);
+                            System.out.print(iteration_count);
+
                             // set run parameters
                             SBD.setSegment_length(segment_length);
                             SBD.setNum_block_cols(block_dim);
@@ -33,7 +35,7 @@ public class parameterTuner {
 
                             double F1 = calculateF1(videoName);
 
-                            String out = (iteration_count+ ":    F1=" + F1 + "   TC2:" + TC2 + ", e:" + epsilon + ", B:" + block_dim + ", S:" + segment_length + "\n");
+                            String out = ("   TC2:" + TC2 + ", e:" + epsilon + ", B:" + block_dim + ", S:" + segment_length + "\n");
                             bw.write(out);
                             System.out.print(out);
                             if (F1 > bestF1) {
@@ -60,9 +62,7 @@ public class parameterTuner {
         }
 
         System.out.println("Execution Complete.");
-        System.out.println("Best parameters: segment_length=" + best_segment_length + ", block_dim=" + best_block_dim + ", epsilon=" + epsilon + ", TC2=" + TC2);
-
-
+        System.out.println("Best parameters: F1=" + bestF1 + best_segment_length + ", block_dim=" + best_block_dim + ", epsilon=" + epsilon + ", TC2=" + TC2);
     }
 
     private static double calculateF1 (String videoName) {
@@ -79,12 +79,15 @@ public class parameterTuner {
 
         double P = Nc / (Nc + Nf);
         double R = Nc / (Nc + Nm);
+        double F1 = (2 * P * R) / (P + R);
 
-        return (2 * P * R) / (P + R);
+        System.out.print(":    F1=" + F1 + ",   Nc=" + Nc + ",  Nf=" + Nf + ",  Nm=" + Nm);
+
+        return F1;
     }
 
 
-    private static final int softness = 4; // we will consider a frame +/-softness from the real timestamp as correct
+    private static final int softness = 7; // we will consider a frame +/-softness from the real timestamp as correct
     private static int[] calculateN (List<Integer> test, List<Integer> real) {
         int[] N = {0, 0, 0};
         int Nc = 0;
@@ -137,8 +140,8 @@ public class parameterTuner {
     }
 
     static final int block_dim_min = 3;
-    static final int block_dim_max = 6;
-    private static final int segment_length_min = 15; // number of frames in segment
+    static final int block_dim_max = 5;
+    private static final int segment_length_min = 20; // number of frames in segment
     private static final int segment_length_max = 25; // number of frames in segment
     private static final int frame_step_min = 3; // frame step used for cut verification
     private static final int frame_step_max = 6; // frame step used for cut verification
@@ -149,12 +152,12 @@ public class parameterTuner {
     static final double TC1_min = 0.5;
     static final double TC1_max = 0.8;
     static final double TC1_step = 0.1;
-    static final double TC2_min = 0.85;
-    static final double TC2_max = 0.95;
-    static final double TC2_step = 0.02;
+    static final double TC2_min = 0.89;
+    static final double TC2_max = 0.96;
+    static final double TC2_step = 0.0200;
 
     private static int best_block_dim = 3;
-    private static int best_segment_length = 15;
+    private static int best_segment_length = 20;
     private static int best_frame_step = 3;
     private static double best_TC1 = 0.74;
     private static double best_TC2 = 0.85;
