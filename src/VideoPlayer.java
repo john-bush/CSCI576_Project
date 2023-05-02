@@ -8,6 +8,8 @@ import javax.sound.sampled.*;
 import javax.swing.*;
 import java.util.*;
 import javax.swing.Timer;
+import javax.swing.border.EmptyBorder;
+
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -16,7 +18,6 @@ import java.awt.event.ActionListener;
 import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
-import java.util.Map;
 import java.util.TreeMap;
 
 public class VideoPlayer {
@@ -133,7 +134,7 @@ public class VideoPlayer {
         pause.addActionListener(pauseListener);
         panel.add(pause);
 
-        // Scene and Shot Buttons
+        // Scene Buttons
         int i = 1;
         for (int sceneFrame : shotFrames.keySet()) {
             hierarchyButtons.add(new JButton("Scene " + (i)));
@@ -157,8 +158,11 @@ public class VideoPlayer {
             shotsPanel.add(hierarchyButtons.get(hierarchyButtons.size()-1));
             i++;
             int j = 1;
+            // Shot Buttons
             for(int shotFrame : shotFrames.get(sceneFrame)) {
-                hierarchyButtons.add(new JButton("Shot " + (j)));
+                JButton b = new JButton("Shot " + (j));
+                b.setBorder(new EmptyBorder(0, 10, 0, 0));
+                hierarchyButtons.add(b);
                 hierarchyButtons.get(hierarchyButtons.size()-1).addActionListener(new ActionListener() {
                     @Override
                     public void actionPerformed(ActionEvent e) {
