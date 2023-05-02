@@ -4,6 +4,7 @@ import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.awt.image.BufferedImage;
+import javax.sound.sampled.*;
 import javax.swing.*;
 import java.util.*;
 import javax.swing.Timer;
@@ -35,6 +36,16 @@ public class VideoPlayer {
     public static List<JButton> shotButtons = new ArrayList<>();
 
     public static void main(String[] args) {
+
+        AudioPlayer audioPlayer;
+        try {
+             audioPlayer = new AudioPlayer();
+        } catch( javax.sound.sampled.UnsupportedAudioFileException |
+                java.io.IOException |
+                javax.sound.sampled.LineUnavailableException e) {
+            System.out.println("Error with audio: " + e.getMessage());
+            return;
+        }
 
         // Set the layout of the JFrame to BorderLayout
         frame.setSize(new Dimension(width*2, height*2));
@@ -90,6 +101,7 @@ public class VideoPlayer {
             public void actionPerformed(ActionEvent e) {
                 playTimer.stop();
                 playTimer.start();
+                audioPlayer.play();
             }
         });
         playTimer.addActionListener(new ActionListener() {
@@ -106,6 +118,7 @@ public class VideoPlayer {
         ActionListener pauseListener = new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
+                audioPlayer.pause();
                 playTimer.stop();
             }
         };
@@ -124,6 +137,16 @@ public class VideoPlayer {
                     System.out.println(shotFrames.get(final_i));
                     playTimer.stop();
                     playTimer.start();
+
+                    try {
+                        double c = (double)final_i / (double)shotFrames.size();
+                        long micro_time = (long)(c * (audioPlayer.clip.getMicrosecondLength()));
+                        audioPlayer.jump(micro_time);
+                    } catch (UnsupportedAudioFileException | IOException | LineUnavailableException err) {
+                        System.out.println("Error with Audio: " + err.getMessage());
+                    }
+
+
                 }
             });
             shotsPanel.add(shotButtons.get(i));
@@ -131,6 +154,7 @@ public class VideoPlayer {
         panel.setBackground(Color.WHITE);
         frame.setSize(width*2, height*2);
         frame.setVisible(true);
+
     }
 
     public static void play() {
@@ -141,5 +165,6 @@ public class VideoPlayer {
         frame.validate();
         frame.repaint();
         currFrame++;
+
     }
 }

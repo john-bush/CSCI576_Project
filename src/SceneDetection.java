@@ -12,15 +12,12 @@ import org.apache.commons.math3.transform.*;
 
 public class SceneDetection {
 
+    public static long videoLengthMillis;
+
     public static void main(String[] args) {
-        String audioPath = "InputAudio.wav";
+        String audioPath = "GatsbyInputAudio.wav";
 
-        int[] sceneDetectionTimes = detectScenes(audioPath);
-
-//        // print scene detection times in seconds
-//        for (int time : sceneDetectionTimes) {
-//            System.out.println("Scene detected at " + time + " seconds");
-//        }
+        detectScenes(audioPath);
     }
 
     public static int[] detectScenes(String audioPath) {
@@ -44,6 +41,8 @@ public class SceneDetection {
                 System.out.println("Error reading audio data");
                 return new int[0];
             }
+
+            videoLengthMillis = 1000 * (long)(audioStream.getFrameLength() / audioStream.getFormat().getFrameRate());
         } catch (IOException e) {
             System.out.println("Error extracting audio data: " + e.getMessage());
             return new int[0];
@@ -53,11 +52,11 @@ public class SceneDetection {
             audioData[i] = ((short) ((audioBytes[2 * i + 1] << 8) | audioBytes[2 * i])) / 32768.0;
         }
 
-        // set parameters for STFT
+
+
         int windowSize = 131072;
         int hopSize = 65536;
 
-        // apply STFT to audio data based on the window and hop size
         FastFourierTransformer transformer = new FastFourierTransformer(DftNormalization.STANDARD);
         ArrayList<double[]> spectrogramList = new ArrayList<double[]>();
         for (int i = 0; i < audioData.length - windowSize; i += hopSize) {
@@ -88,23 +87,25 @@ public class SceneDetection {
         }
 
 
-        double maxEnergy = Double.MIN_VALUE;
-        for (int i = 0; i < meanEnergy.length; i++) {
-            if (meanEnergy[i] > maxEnergy) {
-                maxEnergy = meanEnergy[i];
+        double[] diffEnergy = new double[spectrogram.length - 1];
+        double maxEnergyDiff = Double.MIN_VALUE;
+        for (int i = 0; i < diffEnergy.length - 1; i++) {
+            diffEnergy[i] = Math.abs(meanEnergy[i] - meanEnergy[i + 1]);
+            if(diffEnergy[i] > maxEnergyDiff) {
+                maxEnergyDiff = diffEnergy[i];
             }
         }
 
-        // Determine the threshold needed to find the scene changes
-        double threshold = maxEnergy * 0.6;
-
+        double diffThreshold = maxEnergyDiff * 0.4;
         ArrayList<Double> sceneChangeTimesList = new ArrayList<Double>();
-        for (int i = 0; i < meanEnergy.length; i++) {
-            if (meanEnergy[i] > threshold) {
-                double insert = ((double)i / meanEnergy.length) * 289;
+        for (int i = 0; i < diffEnergy.length; i++) {
+            if (diffEnergy[i] > diffThreshold) {
+                double insert = ((double)i / meanEnergy.length) * (videoLengthMillis / 1000);
                 sceneChangeTimesList.add(insert);
             }
         }
+
+
 
         int[] sceneChangeTimes = new int[sceneChangeTimesList.size()];
         String[] sceneChangeTimesString = new String[sceneChangeTimesList.size()];
