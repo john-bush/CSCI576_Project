@@ -147,7 +147,7 @@ public class VideoPlayer {
                     playTimer.stop();
                     playTimer.start();
                     try {
-                        double c = (double)sceneFrame / (double)shotFrames.size();
+                        double c = (double)sceneFrame / (double).size();
                         long micro_time = (long)(c * (audioPlayer.clip.getMicrosecondLength()));
                         audioPlayer.jump(micro_time);
                     } catch (UnsupportedAudioFileException | IOException | LineUnavailableException err) {
@@ -172,7 +172,7 @@ public class VideoPlayer {
                         playTimer.stop();
                         playTimer.start();
                         try {
-                            double c = (double)shotFrame / (double)shotFrames.size();
+                            double c = (double)shotFrame / (double)frames.size();
                             long micro_time = (long)(c * (audioPlayer.clip.getMicrosecondLength()));
                             audioPlayer.jump(micro_time);
                         } catch (UnsupportedAudioFileException | IOException | LineUnavailableException err) {
