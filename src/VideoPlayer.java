@@ -147,8 +147,9 @@ public class VideoPlayer {
                     playTimer.stop();
                     playTimer.start();
                     try {
-                        double c = (double)sceneFrame / (double).size();
-                        long micro_time = (long)(c * (audioPlayer.clip.getMicrosecondLength()));
+                        int minutes = ((sceneFrame/30) % 3600) / 60;
+                        double seconds = (sceneFrame/30.0) % 60;
+                        long micro_time = (long)(seconds*1000000) + (minutes*60000000);
                         audioPlayer.jump(micro_time);
                     } catch (UnsupportedAudioFileException | IOException | LineUnavailableException err) {
                         System.out.println("Error with Audio: " + err.getMessage());
@@ -172,8 +173,9 @@ public class VideoPlayer {
                         playTimer.stop();
                         playTimer.start();
                         try {
-                            double c = (double)shotFrame / (double)frames.size();
-                            long micro_time = (long)(c * (audioPlayer.clip.getMicrosecondLength()));
+                            int minutes = ((shotFrame/30) % 3600) / 60;
+                            double seconds = (shotFrame/30.0) % 60;
+                            long micro_time = (long)(seconds*1000000) + (minutes*60000000);
                             audioPlayer.jump(micro_time);
                         } catch (UnsupportedAudioFileException | IOException | LineUnavailableException err) {
                             System.out.println("Error with Audio: " + err.getMessage());
