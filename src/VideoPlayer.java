@@ -28,7 +28,7 @@ public class VideoPlayer {
     public static JPanel shotsPanel = new JPanel();
     public static List<BufferedImage> frames = new ArrayList<>();
     public static int currFrame = 0;
-    public static File file = new File("InputVideo.rgb"); // name of the RGB video file
+//    public static File file = new File("InputVideo.rgb"); // name of the RGB video file
     public static int width = 480; // width of the video frames
     public static int height = 270; // height of the video frames
     public static int fps = 30; // frames per second of the video
@@ -38,17 +38,27 @@ public class VideoPlayer {
 
     public static void main(String[] args) {
         // manually adding for testing
-        shotFrames.put(161, Arrays.asList(251, 420, 508));
-        shotFrames.put(896, Arrays.asList(1080, 1131, 1179, 1352, 1844));
-        shotFrames.put(1958, Arrays.asList(2332, 2459, 2583, 2716, 3148, 3244, 3263));
-        shotFrames.put(3284, Arrays.asList(3303, 3546, 3620, 3729, 3770, 3809, 3848, 3879, 3990, 4023, 4052, 4081));
-        shotFrames.put(4129, Arrays.asList(4232, 4346, 4492, 4724, 4844, 5329, 5599, 5754, 5952, 6140, 6303, 6857, 6969, 7048, 7458, 7591));
-        
-        numFrames = (int)(file.length() / (352*288*(fps/8)));
+//        shotFrames.put(161, Arrays.asList(251, 420, 508));
+//        shotFrames.put(896, Arrays.asList(1080, 1131, 1179, 1352, 1844));
+//        shotFrames.put(1958, Arrays.asList(2332, 2459, 2583, 2716, 3148, 3244, 3263));
+//        shotFrames.put(3284, Arrays.asList(3303, 3546, 3620, 3729, 3770, 3809, 3848, 3879, 3990, 4023, 4052, 4081));
+//        shotFrames.put(4129, Arrays.asList(4232, 4346, 4492, 4724, 4844, 5329, 5599, 5754, 5952, 6140, 6303, 6857, 6969, 7048, 7458, 7591));
+//
+//        numFrames = (int)(file.length() / (352*288*(fps/8)));
+        String VideoName = "The_Great_Gatsby";
+        SegmentedVideoFrameClustering SBD = new SegmentedVideoFrameClustering(VideoName);
+        SBD.run();
+
+        String videoPathName = "lib/"+VideoName+"_rgb/InputVideo.rgb";
+        numFrames = SBD.getNumFrames();
+        shotFrames = SBD.getShotFrames();
+        frames = SBD.getFrames();
+
+        System.gc();
 
         AudioPlayer audioPlayer;
         try {
-             audioPlayer = new AudioPlayer();
+             audioPlayer = new AudioPlayer(VideoName);
         } catch( javax.sound.sampled.UnsupportedAudioFileException |
                 java.io.IOException |
                 javax.sound.sampled.LineUnavailableException e) {
@@ -76,32 +86,6 @@ public class VideoPlayer {
         scrollPane.setPreferredSize(new Dimension(width-50, height*2));
         frame.add(scrollPane, BorderLayout.WEST);
 
-        // read the video file and save each frame
-        try {
-            RandomAccessFile raf = new RandomAccessFile(file, "r");
-            FileChannel channel = raf.getChannel();
-            ByteBuffer buffer = ByteBuffer.allocate(width * height * 3);
-            for (int i = 0; i < numFrames; i++) {
-                buffer.clear();
-                channel.read(buffer);
-                buffer.rewind();
-                BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-                for (int y = 0; y < height; y++) {
-                    for (int x = 0; x < width; x++) {
-                        int r = buffer.get() & 0xff;
-                        int g = buffer.get() & 0xff;
-                        int b = buffer.get() & 0xff;
-                        int rgb = (r << 16) | (g << 8) | b;
-                        image.setRGB(x, y, rgb);
-                    }
-                }
-                frames.add(image);
-            }
-            channel.close();
-            raf.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
 
         // Play Button
         JButton play = new JButton("Play");

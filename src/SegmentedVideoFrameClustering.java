@@ -16,16 +16,28 @@ import org.apache.commons.math4.legacy.linear.SparseRealMatrix;
 public class SegmentedVideoFrameClustering {
     private static final DecimalFormat df = new DecimalFormat("000.00");
 
+    public SegmentedVideoFrameClustering() {
+    }
+
+    public SegmentedVideoFrameClustering(String VideoName) {
+        videoName = VideoName;
+    }
+
     public void setFrames(List<BufferedImage> frames) {
         SegmentedVideoFrameClustering.frames = frames;
     }
 
-    public static TreeMap<Integer, List<Integer>> getShotFrames() {
+    public TreeMap<Integer, List<Integer>> getShotFrames() {
         return shotFrames;
     }
 
     public static TreeMap<Integer, List<Integer>> shotFrames = new TreeMap<>();
     public static List<Integer> shotBoundaries = new ArrayList<>(); // contains first frame idx of each shot
+
+    public List<BufferedImage> getFrames() {
+        return frames;
+    }
+
     private static List<BufferedImage> frames = new ArrayList<>();
 
     private static int num_block_rows = 3;
@@ -46,24 +58,28 @@ public class SegmentedVideoFrameClustering {
     private static String videoName = "Ready_Player_One";
 
     private boolean framesRead = false;
-    private static int numFrames = 8682; // number of frames in the video
+
+    public int getNumFrames() {
+        return numFrames;
+    }
+
+    private int numFrames = 8682; // number of frames in the video
 
     private static int curr_segment_frame;
 
     // Main method
     public static void main(String[] args) {
         SegmentedVideoFrameClustering SBD = new SegmentedVideoFrameClustering(); // Create an object of Main
-        System.out.println("Performing SBD...");
-        SBD.performSBD(); // Call the public method on the object
-        System.out.println("Grouping shots into scenes...");
-        List<Integer> sceneBoundaries = SBD.getScenes();
-        System.out.println("Scene Boundaries:");
-        for (Integer element : sceneBoundaries) {
-            System.out.println(shotBoundaries.get(element));
-        }
-        System.out.println("Assembled Scene Heirarchy:");
-        SBD.assembleScenes(sceneBoundaries);
+        SBD.run();
+    }
 
+    public void run() {
+        System.out.println("Performing SBD...");
+        performSBD(); // Call the public method on the object
+        System.out.println("Grouping shots into scenes...");
+        List<Integer> sceneBoundaries = getScenes();
+        System.out.println("Assembled Scene Heirarchy:");
+        assembleScenes(sceneBoundaries);
     }
 
     public void performSBD() {
@@ -147,15 +163,16 @@ public class SegmentedVideoFrameClustering {
 //        System.gc();
     }
 
-    public void assembleScenes(List<Integer> sceneBoundaries) {
+    public void assembleScenes(List<Integer> sceneBoundaries) { // frame number of the start of the last shot in the scene
         int prevSceneEnd = -1;
         for (int sceneIdx = 0; sceneIdx < sceneBoundaries.size(); sceneIdx++) {
             int sceneEnd = sceneBoundaries.get(sceneIdx); // index of last shot of scene
             List<Integer> shots = new ArrayList<>();
-            System.out.println("Scene " + (sceneIdx + 1) + ":");
+            int frameIdx = shotBoundaries.get(prevSceneEnd + 1);
+            System.out.println("Scene " + (sceneIdx + 1) + ": " + frameIdx);
             int counter = 1;
             for (int shotIdx = prevSceneEnd + 1; shotIdx <= sceneEnd; shotIdx++) {
-                int frameIdx = shotBoundaries.get(shotIdx);
+                frameIdx = shotBoundaries.get(shotIdx);
                 shots.add(frameIdx);
                 System.out.println("\tShot " + counter + ":" + "Frame " + frameIdx);
                 counter++;
@@ -187,7 +204,7 @@ public class SegmentedVideoFrameClustering {
     public int estimate_scene_count(double[][] distanceMatrix) {
         SingularValueDecomposition svd = new SingularValueDecomposition(new Array2DRowRealMatrix(distanceMatrix));
         double[] rawSingulars = svd.getSingularValues();
-        double[] singularValues = new double[(int)(rawSingulars.length * 0.3)];
+        double[] singularValues = new double[(int)(rawSingulars.length * 0.75)];
 
         for(int i = 0; i < singularValues.length; i++) {
             singularValues[i] = Math.log(rawSingulars[i]);
@@ -272,8 +289,7 @@ public class SegmentedVideoFrameClustering {
             }
             System.out.println("],");
         }
-//        int K = estimate_scene_count(D);
-        int K = 10;
+        int K = (int)(estimate_scene_count(D) * 1.50);
         System.out.println("Estimate Scene Count: " + K);
         int N = D.length;
         HashMap<List<Integer>, Double> C = new HashMap<>();
@@ -390,7 +406,7 @@ public class SegmentedVideoFrameClustering {
         return avg;
     }
 
-    public static List<BufferedImage> readVideoFile(String videoName) {
+    public List<BufferedImage> readVideoFile(String videoName) {
         List<BufferedImage> frameList = new ArrayList<>();
         String videoPathName = "lib/"+videoName+"_rgb/InputVideo.rgb";
         File file = new File(videoPathName); // name of the RGB video file
@@ -584,8 +600,8 @@ public class SegmentedVideoFrameClustering {
                     cut_index = i + 1;
                 }
             }
-            int last_boundary = shotBoundaries.get(shotBoundaries.size() - 1) + 10;
-            if (last_boundary > (cut_index + curr_segment_frame)) {
+            int last_boundary = shotBoundaries.get(shotBoundaries.size() - 1) + 15;
+            if (last_boundary >= (cut_index + curr_segment_frame)) {
                 return -1;
             } else {
                 return cut_index;
@@ -847,7 +863,9 @@ public class SegmentedVideoFrameClustering {
 
 //        double numerator = innerProduct(vector1, vector2);
 //        double denominator = magnitude(vector1) * magnitude(vector2);
-
+        if (denominator == 0.) {
+            return 0;
+        }
         return numerator/denominator;
     }
 
