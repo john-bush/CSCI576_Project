@@ -140,9 +140,9 @@ public class parameterTuner {
     }
 
     static final int block_dim_min = 3;
-    static final int block_dim_max = 5;
+    static final int block_dim_max = 4;
     private static final int segment_length_min = 20; // number of frames in segment
-    private static final int segment_length_max = 25; // number of frames in segment
+    private static final int segment_length_max = 30; // number of frames in segment
     private static final int frame_step_min = 3; // frame step used for cut verification
     private static final int frame_step_max = 6; // frame step used for cut verification
 
@@ -152,8 +152,8 @@ public class parameterTuner {
     static final double TC1_min = 0.5;
     static final double TC1_max = 0.8;
     static final double TC1_step = 0.1;
-    static final double TC2_min = 0.89;
-    static final double TC2_max = 0.96;
+    static final double TC2_min = 0.90;
+    static final double TC2_max = 0.965;
     static final double TC2_step = 0.0200;
 
     private static int best_block_dim = 3;

@@ -19,15 +19,20 @@ public class SegmentedVideoFrameClustering {
     public void setFrames(List<BufferedImage> frames) {
         SegmentedVideoFrameClustering.frames = frames;
     }
+
+    public static TreeMap<Integer, List<Integer>> getShotFrames() {
+        return shotFrames;
+    }
+
     public static TreeMap<Integer, List<Integer>> shotFrames = new TreeMap<>();
     public static List<Integer> shotBoundaries = new ArrayList<>(); // contains first frame idx of each shot
     private static List<BufferedImage> frames = new ArrayList<>();
 
     private static int num_block_rows = 3;
     private static int num_block_cols = 3;
-    private static final int num_histograms = 4;
+    private static int num_histograms = 3;
     private static final int num_bins = 256;
-    private static int segment_length = 30; // number of frames in segment
+    private static int segment_length = 25; // number of frames in segment
     private static int frame_step = 4; // frame step used for cut verification
 
 //    THRESHOLDS AND TUNING PARAMETERS
@@ -38,7 +43,7 @@ public class SegmentedVideoFrameClustering {
     static final int DEBUG = -1; // to show correlation differences
     static final boolean PRINT_TIME = false;
 
-    public static String videoName = "Ready_Player_One";
+    private static String videoName = "Ready_Player_One";
 
     private boolean framesRead = false;
     private static int numFrames = 8682; // number of frames in the video
@@ -182,7 +187,7 @@ public class SegmentedVideoFrameClustering {
     public int estimate_scene_count(double[][] distanceMatrix) {
         SingularValueDecomposition svd = new SingularValueDecomposition(new Array2DRowRealMatrix(distanceMatrix));
         double[] rawSingulars = svd.getSingularValues();
-        double[] singularValues = new double[(int)(rawSingulars.length * 0.75)];
+        double[] singularValues = new double[(int)(rawSingulars.length * 0.3)];
 
         for(int i = 0; i < singularValues.length; i++) {
             singularValues[i] = Math.log(rawSingulars[i]);
@@ -216,12 +221,13 @@ public class SegmentedVideoFrameClustering {
         for (int i = 0; i < dim; i++) {
             int shotStart = shotBoundaries.get(i);
             int shotEnd = shotBoundaries.get(i+1) - 1;
-            averageHistograms[i] = averageHistogram(shotStart + shot_padding, shotEnd - shot_padding, 6);
+            averageHistograms[i] = averageHistogram(shotStart + shot_padding, shotEnd - shot_padding, 3);
         }
         for (int i = 0; i < dim - 1; i++) {
             for (int j = i; j < dim - 1; j++) {
                 double correlation = computeCorrelation(averageHistograms[i], averageHistograms[j]);
-                double adj_correlation = Math.exp(-1 * (correlation - 2)) - 0.33;
+//                double adj_correlation = Math.pow(-4.0 * correlation + 4, 3);
+                double adj_correlation = 1.0 - correlation;
                 distances[i][j] = adj_correlation; // convert cosine similarity to a distance (greater is further apart)
                 distances[j][i] = adj_correlation;
 //                double distance = euclideanDistance(averageHistograms[i], averageHistograms[j]);
@@ -266,7 +272,9 @@ public class SegmentedVideoFrameClustering {
             }
             System.out.println("],");
         }
-        int K = estimate_scene_count(D);
+//        int K = estimate_scene_count(D);
+        int K = 10;
+        System.out.println("Estimate Scene Count: " + K);
         int N = D.length;
         HashMap<List<Integer>, Double> C = new HashMap<>();
         HashMap<List<Integer>, Integer> J = new HashMap<>();
@@ -688,7 +696,13 @@ public class SegmentedVideoFrameClustering {
      *          (each of the 9 block's histograms are all concatenated together, such as:
      *              [B1R, B1G, B1B, B1Y, B2R, B2G, B2B, B2Y, ...]
      */
-    private List<Integer> computeHistogram(BufferedImage image) {
+
+    private List<Integer> computeHistogram(BufferedImage image, boolean useLuminance) {
+        if (useLuminance) {
+            num_histograms = 4;
+        } else {
+            num_histograms = 3;
+        }
         final int m = num_block_rows * num_block_cols * num_histograms * num_bins;
         List<Integer> histogram = new ArrayList<>(m);
 
@@ -717,6 +731,20 @@ public class SegmentedVideoFrameClustering {
                         int green = color.getGreen();
                         int blue = color.getBlue();
 
+                        // luminance equation is from the internet -- supposedly is the perceptual luminance given RGB
+                        if (useLuminance) {
+                            int luminance = getLuminance(red, green, blue);
+                            int lum_idx = (int) (luminance * (double) (num_bins / 256) + (3 * num_bins) + histogram_offset);
+
+                            histogram.set(lum_idx, histogram.get(lum_idx) + 1);
+                        } else {
+                            int[] rgb = {red, green, blue};
+                            int[] yiq = convertRGBtoYIQ(rgb);
+                            red = yiq[0];
+                            green = yiq[1];
+                            blue = yiq[2];
+                        }
+
                         int red_idx = (int)(red * (double)(num_bins / 256) + histogram_offset);
                         int green_idx = (int)(green * (double)(num_bins / 256) + num_bins + histogram_offset);
                         int blue_idx = (int)(blue * (double)(num_bins / 256)+ (2 * num_bins) + histogram_offset);
@@ -725,13 +753,7 @@ public class SegmentedVideoFrameClustering {
                         histogram.set(green_idx, histogram.get(green_idx) + 1);
                         histogram.set(blue_idx, histogram.get(blue_idx) + 1);
 
-                        // luminance equation is from the internet -- supposedly is the perceptual luminance given RGB
-                        if (num_histograms == 4) {
-                            int luminance = getLuminance(red, green, blue);
-                            int lum_idx = (int)(luminance * (double)(num_bins / 256) + (3 * num_bins) + histogram_offset);
 
-                            histogram.set(lum_idx, histogram.get(lum_idx) + 1);
-                        }
                     }
                 }
             }
@@ -743,9 +765,9 @@ public class SegmentedVideoFrameClustering {
     private int[] computeHistogramVector(BufferedImage image, boolean useLuminance) {
         int num_histograms_;
         if (useLuminance) {
-            num_histograms_ = num_histograms;
+            num_histograms_ = 4;
         } else {
-            num_histograms_ = num_histograms - 1;
+            num_histograms_ = 3;
         }
         int m = num_block_rows * num_block_cols * num_histograms_ * num_bins;
 
@@ -771,6 +793,21 @@ public class SegmentedVideoFrameClustering {
                         int green = color.getGreen();
                         int blue = color.getBlue();
 
+                        if (useLuminance) {
+                            // luminance equation is from the internet -- supposedly is the perceptual luminance given RGB
+                            int luminance = getLuminance(red, green, blue);
+                            int lum_idx = (int)(luminance * (double)(num_bins / 256) + (3 * num_bins) + histogram_offset);
+
+                            histogram[lum_idx] = histogram[lum_idx] + 1;
+                        }
+                        else { // use YIQ
+                            int[] rgb = {red, green, blue};
+                            int[] yiq = convertRGBtoYIQ(rgb);
+                            red = yiq[0];
+                            green = yiq[1];
+                            blue = yiq[2];
+                        }
+
                         int red_idx = (int)(red * (double)(num_bins / 256) + histogram_offset);
                         int green_idx = (int)(green * (double)(num_bins / 256) + num_bins + histogram_offset);
                         int blue_idx = (int)(blue * (double)(num_bins / 256)+ (2 * num_bins) + histogram_offset);
@@ -779,13 +816,7 @@ public class SegmentedVideoFrameClustering {
                         histogram[green_idx] = histogram[green_idx] + 1;
                         histogram[blue_idx] = histogram[blue_idx] + 1;
 
-                        // luminance equation is from the internet -- supposedly is the perceptual luminance given RGB
-                        if (useLuminance) {
-                            int luminance = getLuminance(red, green, blue);
-                            int lum_idx = (int)(luminance * (double)(num_bins / 256) + (3 * num_bins) + histogram_offset);
 
-                            histogram[lum_idx] = histogram[lum_idx] + 1;
-                        }
                     }
                 }
             }
@@ -795,8 +826,8 @@ public class SegmentedVideoFrameClustering {
     }
 
     private double computeCorrelation(int frameIdx1, int frameIdx2) {
-        List<Integer> histogram1 = computeHistogram(frames.get(frameIdx1));
-        List<Integer> histogram2 = computeHistogram(frames.get(frameIdx2));
+        List<Integer> histogram1 = computeHistogram(frames.get(frameIdx1), false);
+        List<Integer> histogram2 = computeHistogram(frames.get(frameIdx2), false);
 
         List<Double> norm1 = normalize_histogram(histogram1);
         List<Double> norm2 = normalize_histogram(histogram2);
@@ -940,6 +971,20 @@ public class SegmentedVideoFrameClustering {
         } else {
             return Math.pow((( linearVal + 0.055)/1.055),2.4);
         }
+    }
+
+    public int[] convertRGBtoYIQ(int[] rgb) {
+        float r = rgb[0];
+        float g = rgb[1];
+        float b = rgb[2];
+
+        int[] yiq = new int[3];
+
+        yiq[0] = (int)((0.299900f * r) + (0.587000f * g) + (0.114000f * b));
+        yiq[1] = (int)((0.595716f * r) - (0.274453f * g) - (0.321264f * b));
+        yiq[2] = (int)((0.211456f * r) - (0.522591f * g) + (0.311350f * b));
+
+        return yiq;
     }
 
     private static double[] calculateF1 (String videoName) {
