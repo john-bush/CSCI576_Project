@@ -20,7 +20,12 @@ public class AudioPlayer {
     String status;
 
     AudioInputStream audioInputStream;
-    static String filePath;
+
+    public void setFilePath(String videoName) {
+        filePath = "lib/"+videoName+"_rgb/InputAudio.wav";
+    }
+
+    private String filePath;
 
     // constructor to initialize streams and clip
     public AudioPlayer()
@@ -29,7 +34,27 @@ public class AudioPlayer {
     {
         // create AudioInputStream object
         audioInputStream =
-                AudioSystem.getAudioInputStream(new File("InputAudio.wav").getAbsoluteFile());
+                AudioSystem.getAudioInputStream(new File(filePath).getAbsoluteFile());
+
+        // create clip reference
+        clip = AudioSystem.getClip();
+
+        status = "paused";
+
+        // open audioInputStream to the clip
+        clip.open(audioInputStream);
+        clip.stop();
+
+    }
+
+    public AudioPlayer(String videoName)
+            throws UnsupportedAudioFileException,
+            IOException, LineUnavailableException
+    {
+        filePath = "lib/"+videoName+"_rgb/InputAudio.wav";
+        // create AudioInputStream object
+        audioInputStream =
+                AudioSystem.getAudioInputStream(new File(filePath).getAbsoluteFile());
 
         // create clip reference
         clip = AudioSystem.getClip();
@@ -46,9 +71,9 @@ public class AudioPlayer {
     {
         try
         {
-            filePath = "InputAudio.wav";
             AudioPlayer audioPlayer =
                     new AudioPlayer();
+            audioPlayer.filePath = "InputAudio.wav";
 
             audioPlayer.play();
 
@@ -139,7 +164,7 @@ public class AudioPlayer {
             LineUnavailableException
     {
         audioInputStream = AudioSystem.getAudioInputStream(
-                new File("InputAudio.wav").getAbsoluteFile());
+                new File(filePath).getAbsoluteFile());
         clip.open(audioInputStream);
         clip.loop(Clip.LOOP_CONTINUOUSLY);
     }
