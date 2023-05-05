@@ -29,7 +29,7 @@ public class AudioPlayer {
     {
         // create AudioInputStream object
         audioInputStream =
-                AudioSystem.getAudioInputStream(new File("ReadyInputAudio.wav").getAbsoluteFile());
+                AudioSystem.getAudioInputStream(new File("InputAudio.wav").getAbsoluteFile());
 
         // create clip reference
         clip = AudioSystem.getClip();
@@ -46,7 +46,7 @@ public class AudioPlayer {
     {
         try
         {
-            filePath = "ReadyInputAudio.wav";
+            filePath = "InputAudio.wav";
             AudioPlayer audioPlayer =
                     new AudioPlayer();
 
@@ -139,7 +139,7 @@ public class AudioPlayer {
             LineUnavailableException
     {
         audioInputStream = AudioSystem.getAudioInputStream(
-                new File("ReadyInputAudio.wav").getAbsoluteFile());
+                new File("InputAudio.wav").getAbsoluteFile());
         clip.open(audioInputStream);
         clip.loop(Clip.LOOP_CONTINUOUSLY);
     }
